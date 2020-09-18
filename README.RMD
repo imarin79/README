@@ -1,0 +1,65 @@
+---
+title: "README.RMD"
+author: "IV"
+date: "9/17/2020"
+output: html_document
+---
+```{r setup, include=FALSE}
+#Here is a description of how the run_analysis code works:
+#1) First we set up the directory where all the files will be located.
+setwd("~/Downloads") #Set the directory
+# 2) We upload dplyr
+library(dplyr) 
+#3) We upload and unzip the file. Further description is next to each code line. 
+filename <- "Data.zip" # Here we give an arbitrary name to the file.
+fileURL <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip" # Actual file.
+download.file(fileURL, filename, method="curl")  #Here we donwload the file.
+unzip(filename) # And then we unzip it. 
+
+# 4)  Here we open the text files using the function read.table. We assign each text file to an arbitrary name object. 
+Features <- read.table("UCI HAR Dataset/features.txt", col.names = c("n","functions"))
+Activities <- read.table("UCI HAR Dataset/activity_labels.txt", col.names = c("code", "activity"))
+SubjectTest <- read.table("UCI HAR Dataset/test/subject_test.txt", col.names = "subject")
+X_test <- read.table("UCI HAR Dataset/test/X_test.txt", col.names = features$functions)
+Y_test <- read.table("UCI HAR Dataset/test/y_test.txt", col.names = "code")
+SubjectTrain <- read.table("UCI HAR Dataset/train/subject_train.txt", col.names = "subject")
+X_train <- read.table("UCI HAR Dataset/train/X_train.txt", col.names = features$functions)
+Y_train <- read.table("UCI HAR Dataset/train/y_train.txt", col.names = "code")
+
+# 5) Next, we actually run the code in the following steps:
+
+# Step 1: Merge trains and tests files using the function rbind. The reason we use rbind is because both files share the same rows; the only thing that is different is the number of observations per variable 
+# in each file. 
+x <- rbind(X_train, X_test) # These two files share 561 variables (columns) with different observations in it.
+y <- rbind(Y_train, Y_test) # These two files share 1 variable (columns) with different observations in it.
+Subjects <- rbind(SubjectTrain, SubjectTest)  # These two files share 1 variable (columns) with different observations in it.
+MergedData <- cbind(Subjects, y, x) # Now we merge the three dataframes we created by cbind, so we will have the 561 columns plus two. 
+
+# Step 2: Extract only the measurements on the mean and standard deviation for each measurement.
+Data <- MergedData %>%  # From the dataframe MergedData we are going to return mean and std from variables subject and code.
+  dplyr::select(subject, code, contains("mean"), contains("std"))
+
+#Step 3: Use descriptive activity names to name the activities in the data set. Here we are essentially giving complete names to each variable. 
+Data$code <- activities[Data$code, 2]
+names(Data)[2] = "Activity"
+names(Data)<-gsub("Acc", "Accelerometer", names(Data))
+names(Data)<-gsub("Gyro", "Gyroscope", names(Data))
+names(Data)<-gsub("BodyBody", "Body", names(Data))
+names(Data)<-gsub("Mag", "Magnitude", names(Data))
+names(Data)<-gsub("^t", "Time", names(Data))
+names(Data)<-gsub("^f", "Frequency", names(Data))
+names(Data)<-gsub("tBody", "TimeBody", names(Data)) 
+names(Data)<-gsub("-mean()", "Mean", names(Data), ignore.case = TRUE) #Here and below we make the matching case insensitive. 
+names(Data)<-gsub("-std()", "StandDev", names(Data), ignore.case = TRUE)
+names(Data)<-gsub("-freq()", "Frequency", names(Data), ignore.case = TRUE)
+names(Data)<-gsub("angle", "Angle", names(Data))
+names(Data)<-gsub("gravity", "Gravity", names(Data))
+
+
+# Step 5: From the data set in step 4, creates a second, independent tidy data set with the average of each variable for each activity and each subject.
+LatestData <- Data %>%
+  group_by(subject, Activity) %>%
+  summarise_all(funs(mean))
+write.table(LatestData, "LatestData.txt", row.name=FALSE)
+
+```
